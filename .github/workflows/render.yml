@@ -58,9 +58,8 @@ jobs:
 
       - name: Render
         env:
-          # push 触发时 inputs 为空，用 || 回落到默认值。
-          # 注意：SmokeTest 是链路验证用合成；正式合成 HuangZishou 建好后把这里改掉。
-          COMP: ${{ inputs.composition || 'SmokeTest' }}
+          # push 触发时 inputs 为空，用 || 回落到默认值 HuangZishou（正式合成）。
+          COMP: ${{ inputs.composition || 'HuangZishou' }}
           FRAMES: ${{ inputs.frames || '' }}
           SCALE: ${{ inputs.scale || '1' }}
         run: |
@@ -75,6 +74,6 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: render-${{ inputs.composition || 'SmokeTest' }}
+          name: render-${{ inputs.composition || 'HuangZishou' }}
           path: out/*.mp4
           retention-days: 7
