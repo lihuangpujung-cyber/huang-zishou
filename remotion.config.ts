@@ -1,3 +1,4 @@
+import {existsSync} from 'node:fs';
 import {Config} from '@remotion/cli/config';
 
 /**
@@ -22,9 +23,13 @@ Config.setOverwriteOutput(true);
 Config.setDelayRenderTimeoutInMilliseconds(120000);
 
 /**
- * 复用本机已安装的 Edge，不下载 Remotion 自带的 Chrome Headless Shell。
- * 原因：内置浏览器约 150MB，本机下载极慢；Edge 同样支持 headless 渲染，
- * 且无需额外磁盘与网络开销。
+ * 浏览器选择（分平台处理，否则云端 Linux runner 会因路径不存在而失败）：
+ * - Windows 本机：复用已安装的 Edge，避免下载 150MB 的 Chrome Headless Shell。
+ * - GitHub Actions（Linux）：路径不存在，交给 Remotion 自行使用 runner 上的浏览器。
  */
-Config.setBrowserExecutable('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe');
+const LOCAL_EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+if (process.platform === 'win32' && existsSync(LOCAL_EDGE)) {
+  Config.setBrowserExecutable(LOCAL_EDGE);
+}
+
 
