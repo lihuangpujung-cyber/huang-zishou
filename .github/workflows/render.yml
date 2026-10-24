@@ -14,6 +14,10 @@ on:
   # push 到 main 就自动渲染一次（不需要任何 token，推送即触发）
   push:
     branches: [main]
+    # 只改文档不必重新渲染，省云端分钟数
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
   workflow_dispatch:
     inputs:
       composition:
