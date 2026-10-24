@@ -1,0 +1,76 @@
+name: Render on Cloud
+
+# 云端渲染工作流（GitHub Actions 托管 runner，不占用本机 CPU）
+#
+# 本地只需要 push 代码；渲染在 GitHub 的机器上完成，产物以 artifact 形式下载。
+# 免费额度：公开仓库不限时长；私有仓库每月 2000 分钟（本项目一次成片约 5–10 分钟）。
+#
+# 启用前置条件（三选一，均需一次人工授权）：
+#   1. 在 GitHub 建一个仓库并给本机配置 SSH key（本机 github.com:443 被代理拦截，SSH 端口可用）
+#   2. 或使用 Personal Access Token + 允许 https 访问 github.com
+#   3. 或把本工程目录打包上传到任意支持 Actions 的托管平台
+
+on:
+  # push 到 main 就自动渲染一次（不需要任何 token，推送即触发）
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      composition:
+        description: '要渲染的 Composition ID'
+        required: true
+        default: 'HuangZishou'
+      frames:
+        description: '帧范围，如 0-89；留空渲染全部'
+        required: false
+        default: ''
+      scale:
+        description: '缩放（1 = 1080x1920 正式，0.5 = 预览）'
+        required: true
+        default: '1'
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # 中文字体：Linux runner 默认没有宋体，必须装 Noto Serif CJK，
+      # 否则中文会渲染成方框或回退到无衬线体，与本机预览不一致。
+      - name: Install CJK fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk fonts-noto-cjk-extra
+          fc-cache -f
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Render
+        env:
+          # push 触发时 inputs 为空，用 || 回落到默认值。
+          # 注意：SmokeTest 是链路验证用合成；正式合成 HuangZishou 建好后把这里改掉。
+          COMP: ${{ inputs.composition || 'SmokeTest' }}
+          FRAMES: ${{ inputs.frames || '' }}
+          SCALE: ${{ inputs.scale || '1' }}
+        run: |
+          if [ -n "$FRAMES" ]; then
+            npx remotion render src/index.ts "$COMP" "out/$COMP.mp4" \
+              --scale="$SCALE" --concurrency=4 --frames="$FRAMES" --log=info
+          else
+            npx remotion render src/index.ts "$COMP" "out/$COMP.mp4" \
+              --scale="$SCALE" --concurrency=4 --log=info
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-${{ inputs.composition || 'SmokeTest' }}
+          path: out/*.mp4
+          retention-days: 7
